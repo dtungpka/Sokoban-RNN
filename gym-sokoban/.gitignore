@@ -1,0 +1,11 @@
+*.egg-info
+*.pyc
+.idea
+/logs
+/notebooks
+*~
+.sokoban_cache/
+dist/
+build/
+gym_sokoban/envs/xsbs.zip
+gym-sokoban/gym_sokoban/envs/xsbs/
