@@ -8,7 +8,7 @@ import atpbar
 from atpbar import atpbar,register_reporter, find_reporter, flush
 import gym
 import gym_sokoban
-EPISODES = 800
+EPISODES = 10000 * 8
 
 #create folder value_functions if it doesn't exist
 if not os.path.exists('value_functions'):
@@ -20,10 +20,9 @@ def process(process_name,reporter,queue,every_visit_mc = False,episodes = 300):
         env_name = 'Sokoban-v1'
         env = gym.make(env_name)
         ACTION_LOOKUP = env.unwrapped.get_action_lookup()
-        env.unwrapped.set_level(0,1)
+        env.unwrapped.set_level(0,2)
         env.seed(os.getpid())
         env.reset()
-        print("Created environment: {}".format(env_name))
         V = {}
         total_returns = {}
         N = {}
@@ -34,7 +33,7 @@ def process(process_name,reporter,queue,every_visit_mc = False,episodes = 300):
             env.reset()
             state = env.unwrapped.serialize_state()
             done = False
-            for t in range(1000):
+            for t in range(50):
                 action_time = time.time()
                 if done:
                     break
@@ -54,9 +53,12 @@ def process(process_name,reporter,queue,every_visit_mc = False,episodes = 300):
                     N[state][action] += 1
                     V[state][action] = total_returns[state][action] / N[state][action]
                 state = next_state
-        with open(f'value_functions/value_function_{process_name}.pickle', 'wb') as handle:
-            pickle.dump(V, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        result = {'V':V, 'N':N, 'total_returns':total_returns}
+        with open(f'value_functions/Result {process_name}.pickle', 'wb') as handle:
+            pickle.dump(result, handle, protocol=pickle.HIGHEST_PROTOCOL)
         queue.put((V,N,total_returns))
+        #end of process
+
         
 
 def greedy_policy(env,V,s):
@@ -65,7 +67,7 @@ def greedy_policy(env,V,s):
 
     if s not in V:
         V[s] = np.zeros(env.action_space.n)
-    r_choice = .1
+    r_choice = .4
     if np.random.random() < r_choice:
         return np.random.choice(np.arange(env.action_space.n))
     else:
@@ -110,8 +112,9 @@ def main():
                 total_returns[state] = np.zeros(8)
             total_returns[state] += results[i][2][state]
     flush()
-    with open('value_function.pickle', 'wb') as handle:
-        pickle.dump(V, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    result = {'V':V, 'N':N, 'total_returns':total_returns}
+    with open(f'value_functions/Result.pickle', 'wb') as handle:
+        pickle.dump(result, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 if __name__ == "__main__":
     main()

@@ -48,11 +48,11 @@ class SokobanEnv(gym.Env):
         self.boxes_on_target = 0
 
         # Penalties and Rewards
-        self.penalty_for_step = -0.1
-        self.penalty_box_off_target = -0.5
-        self.penalty_illegal_move = -10
-        self.reward_box_on_target = 20
-        self.reward_finished = 1000
+        self.penalty_for_step = -0.01
+        self.penalty_box_off_target = -.1
+        self.penalty_illegal_move = -.5
+        self.reward_box_on_target = 2
+        self.reward_finished = 10
         self.reward_last = 0
         
         # Other Settings
@@ -84,11 +84,7 @@ class SokobanEnv(gym.Env):
         # All push actions are in the range of [0, 3]
         if action < 4:
             moved_player, moved_box = self._push(action)
-            if not moved_box:
-                self.reward_last += self.penalty_illegal_move
-        else:
-            moved_player = self._move(action)
-            if not moved_player:
+            if not moved_box and not moved_player:
                 self.reward_last += self.penalty_illegal_move
         self._calc_reward()
         
@@ -147,7 +143,7 @@ class SokobanEnv(gym.Env):
 
         # Try to move if no box to push, available
         else:
-            return False, False#self._move(action), False
+            return self._move(action), False
 
     def _move(self, action):
         """
@@ -254,7 +250,7 @@ class SokobanEnv(gym.Env):
         elif 'human' in mode:
             from gym.envs.classic_control import rendering
             if self.viewer is None:
-                self.viewer = rendering.SimpleImageViewer()
+                self.viewer = rendering.SimpleImageViewer(maxwidth=img.shape[1]*2)
             self.viewer.imshow(img)
             return self.viewer.isopen
 
@@ -294,14 +290,10 @@ class SokobanEnv(gym.Env):
                 s += str(j)
         return s
 ACTION_LOOKUP = {
-    0: 'push up',
-    1: 'push down',
-    2: 'push left',
-    3: 'push right',
-    4: 'move up',
-    5: 'move down',
-    6: 'move left',
-    7: 'move right',
+    0: 'right',
+    1: 'up',
+    2: 'down',
+    3: 'left',
 }
 
 # Moves are mapped to coordinate changes as follows
