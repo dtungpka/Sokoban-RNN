@@ -13,7 +13,10 @@ def inter(arr):
                 .replace("#", "3")
                 .replace("$", "4")
                 .replace(".", "5")
-                .replace("*", "6"))
+                .replace("*", "6")
+                .replace("e", "7")
+                .replace("f", "8")
+                )
             for char in row] for row in arr]
     return np.array(arr, dtype=np.uint8)
 

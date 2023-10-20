@@ -6,6 +6,7 @@ from .room_utils import generate_room
 from .render_utils import room_to_rgb, room_to_tiny_world_rgb
 import numpy as np
 import numba
+import PIL
 
 
 def inter(arr):
@@ -17,7 +18,10 @@ def inter(arr):
                 .replace("#", "3")
                 .replace("$", "4")
                 .replace(".", "5")
-                .replace("*", "6"))
+                .replace("*", "6")
+                .replace("e", "7")
+                .replace("f", "8")
+                )
             for char in row] for row in arr]
     return np.array(arr, dtype=np.uint8)
 
@@ -48,15 +52,17 @@ class SokobanEnv(gym.Env):
         self.boxes_on_target = 0
 
         # Penalties and Rewards
-        self.penalty_for_step = -0.01
-        self.penalty_box_off_target = -.1
-        self.penalty_illegal_move = -.5
+        self.penalty_for_step = -0.002
+        self.penalty_box_off_target = -.01
+        self.penalty_illegal_move = -.05
+        self.penalty_push_box = -0.001
         self.reward_box_on_target = 2
         self.reward_finished = 10
         self.reward_last = 0
-        
+        self.current_frame = 0
         # Other Settings
         self.viewer = None
+        self.pending_init_render= False
         self.max_steps = max_steps
         self.action_space = Discrete(len(ACTION_LOOKUP))
         screen_height, screen_width = (dim_room[0] * 128, dim_room[1] * 128)
@@ -86,6 +92,10 @@ class SokobanEnv(gym.Env):
             moved_player, moved_box = self._push(action)
             if not moved_box and not moved_player:
                 self.reward_last += self.penalty_illegal_move
+            if moved_box:
+                self.reward_last += self.penalty_push_box
+            else:
+                self.reward_last += self.penalty_for_step
         self._calc_reward()
         
         done = self._check_if_done()
@@ -174,7 +184,7 @@ class SokobanEnv(gym.Env):
         """
         # Every step a small penalty is given, This ensures
         # that short solutions have a higher reward.
-        self.reward_last += self.penalty_for_step
+        
 
         # count boxes off or on the target
         empty_targets = self.room_state == 5
@@ -262,7 +272,8 @@ class SokobanEnv(gym.Env):
         if mode.startswith('tiny_'):
             img = room_to_tiny_world_rgb(self.room_state, self.room_fixed, scale=scale)
         else:
-            img = room_to_rgb(self.room_state, self.room_fixed)
+            img = room_to_rgb(self.room_state,self.current_frame, self.room_fixed,self.pending_init_render)
+            self.current_frame += 1
 
         return img
 
@@ -283,6 +294,7 @@ class SokobanEnv(gym.Env):
         global CHAPTER, LEVEL
         CHAPTER = chapter
         LEVEL = level
+        self.pending_init_render = True
     def serialize_state(self):
         s = ""
         for i in self.room_state:
