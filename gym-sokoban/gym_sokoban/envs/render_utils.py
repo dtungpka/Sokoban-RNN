@@ -2,6 +2,7 @@ import numpy as np
 import pkg_resources
 import imageio
 import PIL
+import re
 from PIL import GifImagePlugin
 TILE_EDGE = {"3330": 2, "3303": 6, "3300": 38, "3033": 30, "3030": 46, "3003": 22, "3000": 19, "0333": 5, "0330": 4, "0303": 39, "0300": 12, "0033": 47, "0030": 28, "0003": 21, "0000": 20}
 
@@ -13,8 +14,21 @@ TILE_CONER = {
     '33300':-1
 }
 TILE_ADDITIONAL = {
+'.33300.00':11,
+'.3.00300.':27,
+'00.003.3.':29,
+'.00300.33':13,
+'00.003303':77,
+'30.00300.':53,
+'.33000003':60,
+'333000300':68,
+'003000000':37,
+'300300303':69,
+'003000333':77,
+'300000000':45,
+'300000333':53
 
-    
+
 }
 
 GRASS_VARIATIONS = [20,0,1,8,9,16,17]
@@ -54,10 +68,11 @@ def get_tile_type(tile_pos, room):
         return -2 #land full
     edge_hash = ''.join([tile_hash[s] for s in range(1,len(tile_hash),2)])
     coner_hash = ''.join([tile_hash[s] for s in range(0,len(tile_hash),2)])
-    print(f"Edge: {edge_hash} Coner: {coner_hash}")
     transitions_type = TILE_EDGE[edge_hash] if edge_hash in TILE_EDGE else TILE_CONER[coner_hash]
-    
-    print(transitions_type,end=' ')
+    for key in TILE_ADDITIONAL:
+        if re.search(key,tile_hash):
+            transitions_type = TILE_ADDITIONAL[key]
+            print(f'Found {key} in {tile_hash}')
     return transitions_type
 
             
@@ -101,6 +116,9 @@ spike = PIL.Image.open(spike)
 
 aris_path = pkg_resources.resource_filename(resource_package, '/'.join(('surface', 'arisu.gif')))
 aris = PIL.Image.open(aris_path)
+
+ui = pkg_resources.resource_filename(resource_package, '/'.join(('surface', 'ui2.png')))
+ui = PIL.Image.open(ui)
 
 def get_random_grass_tile():
     distribution = np.array([100,5,10,20,10,5,5])
@@ -152,7 +170,6 @@ def init_base_map(room):
             if terrain_map == -2 or terrain_map == 20:
                 terrain_rgb[i].append(grass_tile_images[get_random_grass_tile()])
                 continue
-            print('index: ',terrain_map,i,j)
             terrain_rgb[i].append(grass_tile_images[terrain_map])
     BASE_ROOM = terrain_rgb
 def overlap_tile(tile1,tile2):
@@ -162,7 +179,7 @@ def overlap_tile(tile1,tile2):
     tile1.paste(tile2,mask=tile2.split()[3])
     return tile1
 
-def room_to_rgb(room,frame, room_structure=None,init=False):
+def room_to_rgb(room,frame, room_structure=None,init=False,item=[]):
     global water_map
     """
     Creates an RGB image of the room.
@@ -228,7 +245,17 @@ def room_to_rgb(room,frame, room_structure=None,init=False):
             if surface[i][j] != None:
                 base_frame = overlap_tile(base_frame,surface[i][j])
             room_rgb[x_i:(x_i + 128), y_j:(y_j + 128), :] = np.array(base_frame)
-            
+    NUMBER_OF_ITEMS = 3
+    for i in range(NUMBER_OF_ITEMS):
+        offset = int((128 - ui.width) /2)
+        if len(item) > i:
+            item_img = overlap_tile(ui,surfaces_img[item[i]])
+        else:
+            item_img = ui
+        room_rgb[room_rgb.shape[0]-ui.height:room_rgb.shape[0],offset+i*ui.width:offset+(i+1)*ui.width,:3] = np.array(item_img)[:,:,:3]
+
+    
+
 
     return room_rgb
 

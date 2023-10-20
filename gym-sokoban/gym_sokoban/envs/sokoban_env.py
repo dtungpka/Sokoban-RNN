@@ -28,6 +28,7 @@ def inter(arr):
 CHAPTER = -1
 LEVEL = -1
 LEVEL_PATH = "xsbs/0/1.xsb"
+directions = [(0, 0), (0, 1), (0, -1), (1, 0), (-1, 0)]
 class SokobanEnv(gym.Env):
     a = 1
     metadata = {
@@ -50,12 +51,14 @@ class SokobanEnv(gym.Env):
 
         self.num_boxes = num_boxes
         self.boxes_on_target = 0
-
+        self.items = []
         # Penalties and Rewards
         self.penalty_for_step = -0.002
         self.penalty_box_off_target = -.01
         self.penalty_illegal_move = -.05
         self.penalty_push_box = -0.001
+        self.reward_pickup_item = .2
+        self.reward_extinguish_fire = .5
         self.reward_box_on_target = 2
         self.reward_finished = 10
         self.reward_last = 0
@@ -96,6 +99,12 @@ class SokobanEnv(gym.Env):
                 self.reward_last += self.penalty_push_box
             else:
                 self.reward_last += self.penalty_for_step
+        elif action == 4:
+            moved_player = self._extinguish()
+            if not moved_player:
+                self.reward_last += self.penalty_illegal_move
+            else:
+                self.reward_last += self.penalty_for_step
         self._calc_reward()
         
         done = self._check_if_done()
@@ -113,6 +122,42 @@ class SokobanEnv(gym.Env):
             info["all_boxes_on_target"] = self._check_if_all_boxes_on_target()
 
         return observation, self.reward_last, done, info
+    def _pickup(self):
+        """
+        Pick up an item, if available.
+        :return: Boolean, indicating a change of the room's state
+        """
+        if len(self.items) >= 3:
+            return True
+        current_position = self.player_position.copy()
+        if self.room_state[current_position[0], current_position[1]] == 7:
+            self.room_state[current_position[0], current_position[1]] = 0
+            self.room_fixed[current_position[0], current_position[1]] = 0
+            self.reward_last += self.reward_pickup_item
+            self.items.append(7)
+            return True
+        return False
+    def _extinguish(self):
+        """
+        Extinguish a fire, in a 3x3 area around the player.
+        :return: Boolean, indicating a change of the room's state
+        """
+        current_position = self.player_position.copy()
+        _extinguished = False
+        #check inventory
+        if 7 not in self.items:
+            return False
+        self.items.remove(7)
+            
+        for direction in directions:
+            new_position = current_position + direction
+            if self.room_state[new_position[0], new_position[1]] == 8:
+                self.room_state[new_position[0], new_position[1]] = 0
+                self.room_fixed[new_position[0], new_position[1]] = 0
+                _extinguished = True
+                self.reward_last += self.reward_extinguish_fire
+        return _extinguished
+    
 
     def _push(self, action):
         """
@@ -128,6 +173,10 @@ class SokobanEnv(gym.Env):
         # No push, if the push would get the box out of the room's grid
         new_box_position = new_position + change
         if new_box_position[0] >= self.room_state.shape[0] or new_box_position[1] >= self.room_state.shape[1]:
+            return False, False
+        
+        #if fire, don't push
+        if self.room_state[new_position[0], new_position[1]] == 8:
             return False, False
 
 
@@ -167,8 +216,10 @@ class SokobanEnv(gym.Env):
 
         # Move player if the field in the moving direction is either
         # an empty field or an empty box target.
-        if self.room_state[new_position[0], new_position[1]] in [0, 5]:
+        if self.room_state[new_position[0], new_position[1]] in [0, 5, 7]:
             self.player_position = new_position
+            if self.room_state[new_position[0], new_position[1]] == 7:
+                self._pickup()
             self.room_state[(new_position[0], new_position[1])] = 1
             self.room_state[current_position[0], current_position[1]] = \
                 self.room_fixed[current_position[0], current_position[1]]
@@ -245,6 +296,7 @@ class SokobanEnv(gym.Env):
         self.num_env_steps = 0
         self.reward_last = 0
         self.boxes_on_target = 0
+        self.items = []
 
         starting_observation = self.room_state.reshape((1, 26, 26))
         return starting_observation
@@ -272,7 +324,8 @@ class SokobanEnv(gym.Env):
         if mode.startswith('tiny_'):
             img = room_to_tiny_world_rgb(self.room_state, self.room_fixed, scale=scale)
         else:
-            img = room_to_rgb(self.room_state,self.current_frame, self.room_fixed,self.pending_init_render)
+            img = room_to_rgb(self.room_state,self.current_frame, self.room_fixed,self.pending_init_render,item=self.items)
+            self.pending_init_render = False
             self.current_frame += 1
 
         return img
@@ -300,12 +353,15 @@ class SokobanEnv(gym.Env):
         for i in self.room_state:
             for j in i:
                 s += str(j)
+        #append inventory
+        s += ''.join([str(x) for x in self.items])
         return s
 ACTION_LOOKUP = {
     0: 'right',
     1: 'up',
     2: 'down',
     3: 'left',
+    4: 'extinguish',
 }
 
 # Moves are mapped to coordinate changes as follows
