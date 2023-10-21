@@ -26,7 +26,15 @@ TILE_ADDITIONAL = {
 '300300303':69,
 '003000333':77,
 '300000000':45,
-'300000333':53
+'300000333':53,
+'003000303':77,
+'033000300':68,
+'000300303':69,
+'003000030':77,
+'030000300':68,
+'000000003':36
+
+
 
 
 }
@@ -52,7 +60,8 @@ def get_tile_type(tile_pos, room):
     tile_type = room[tile_pos[0], tile_pos[1]]
     if tile_type == 3:
         return -1 #water
-    
+    if tile_type != 0 and tile_type != 3:
+        print('tile type error',tile_type)
     neighbor_tile = np.zeros((3,3), dtype=np.uint8)
     for i in range(3):
         for j in range(3):
@@ -177,7 +186,7 @@ def overlap_tile(tile1,tile2):
     tile1.paste(tile2,mask=tile2.split()[3])
     return tile1
 
-def room_to_rgb(room,frame, room_structure=None,init=False,item=[]):
+def room_to_rgb(room,frame, room_structure=None,init=False,item=[],facing_right=True):
     global water_map
     """
     Creates an RGB image of the room.
@@ -211,8 +220,10 @@ def room_to_rgb(room,frame, room_structure=None,init=False,item=[]):
     room = room[min_row:max_row+1,min_col:max_col+1]
 
 
-    
     aris.seek(frame % aris.n_frames)
+    arisu = aris.copy()
+    if not facing_right:
+        arisu = arisu.transpose(PIL.Image.FLIP_LEFT_RIGHT)
 
     #water level -> terrain level -> player and box level
     WATER_UPDATE_INTERVAL = 8
@@ -221,7 +232,7 @@ def room_to_rgb(room,frame, room_structure=None,init=False,item=[]):
         water_map = (BASE_WATER + current_water) % 3
 
 
-    surfaces_img = [None, aris, overlap_tile(boxbf_t,aris), None, boxb_t, boxbf_t, boxOK_f,fire_extinguisher,fire]
+    surfaces_img = [None, arisu, overlap_tile(boxbf_t,arisu), None, boxb_t, boxbf_t, boxOK_f,fire_extinguisher,fire]
     surface = []
     for i in range(room.shape[0]):
         surface.append([])

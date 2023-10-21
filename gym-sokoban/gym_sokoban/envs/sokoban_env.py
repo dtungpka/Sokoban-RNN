@@ -53,16 +53,17 @@ class SokobanEnv(gym.Env):
         self.boxes_on_target = 0
         self.items = []
         # Penalties and Rewards
-        self.penalty_for_step = -0.002
-        self.penalty_box_off_target = -.01
+        self.penalty_for_step = -0.001
+        self.penalty_box_off_target = -.1
         self.penalty_illegal_move = -.05
-        self.penalty_push_box = -0.001
-        self.reward_pickup_item = .8
-        self.reward_extinguish_fire = 2.2
-        self.reward_box_on_target = 3
+        self.reward_push_box = 0.005
+        self.reward_pickup_item = 1
+        self.reward_extinguish_fire = 5
+        self.reward_box_on_target = 8
         self.reward_finished = 20
         self.reward_last = 0
         self.current_frame = 0
+        self.last_action = -1
         # Other Settings
         self.viewer = None
         self.pending_init_render= False
@@ -87,6 +88,9 @@ class SokobanEnv(gym.Env):
 
         self.new_box_position = None
         self.old_box_position = None
+        if action == 3 or action == 0:
+            self.last_action = action
+
 
         moved_box = False
 
@@ -96,7 +100,7 @@ class SokobanEnv(gym.Env):
             if not moved_box and not moved_player:
                 self.reward_last += self.penalty_illegal_move
             if moved_box:
-                self.reward_last += self.penalty_push_box
+                self.reward_last += self.reward_push_box
             else:
                 self.reward_last += self.penalty_for_step
         elif action == 4:
@@ -156,6 +160,7 @@ class SokobanEnv(gym.Env):
                 self.room_fixed[new_position[0], new_position[1]] = 0
                 _extinguished = True
                 self.reward_last += self.reward_extinguish_fire
+        
         return _extinguished
     
 
@@ -277,10 +282,10 @@ class SokobanEnv(gym.Env):
     def _check_if_maxsteps(self):
         return (self.max_steps == self.num_env_steps)
     def _check_if_fire_exist_without_extinguisher(self):
-        extinguiser_exist = np.any(np.array(self.room_state) == 7) or 7 in self.items
-        fire_exist = self.room_state == 8
-        #if all fire is extinguished or there is no fire, return false
-        return np.where(fire_exist)[0].shape[0] != 0 and not extinguiser_exist
+        #count the number of fires
+        fires = np.sum((self.room_state == 8)*1)
+        extinguishers = np.sum((self.room_state == 7)*1) + sum([1 for i in self.items if i == 7])
+        return fires > extinguishers
     
     def reset(self, second_player=False, render_mode='rgb_array'):
         try:
@@ -302,6 +307,7 @@ class SokobanEnv(gym.Env):
         self.reward_last = 0
         self.boxes_on_target = 0
         self.items = []
+        self.last_action = -1
 
         starting_observation = self.room_state.reshape((1, 26, 26))
         return starting_observation
@@ -329,7 +335,7 @@ class SokobanEnv(gym.Env):
         if mode.startswith('tiny_'):
             img = room_to_tiny_world_rgb(self.room_state, self.room_fixed, scale=scale)
         else:
-            img = room_to_rgb(self.room_state,self.current_frame, self.room_fixed,self.pending_init_render,item=self.items)
+            img = room_to_rgb(self.room_state,self.current_frame, self.room_fixed,self.pending_init_render,item=self.items,facing_right=self.last_action != 3)
             self.pending_init_render = False
             self.current_frame += 1
 
