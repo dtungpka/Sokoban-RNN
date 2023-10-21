@@ -63,7 +63,6 @@ def get_tile_type(tile_pos, room):
                 neighbor_tile[i,j] = room[tile_pos[0] + i - 1, tile_pos[1] + j - 1]
     #get the hash of the tile
     tile_hash = get_tile_hash(neighbor_tile)
-    print(tile_hash)
     if tile_hash == '000000000':
         return -2 #land full
     edge_hash = ''.join([tile_hash[s] for s in range(1,len(tile_hash),2)])
@@ -72,7 +71,6 @@ def get_tile_type(tile_pos, room):
     for key in TILE_ADDITIONAL:
         if re.search(key,tile_hash):
             transitions_type = TILE_ADDITIONAL[key]
-            print(f'Found {key} in {tile_hash}')
     return transitions_type
 
             
@@ -217,7 +215,7 @@ def room_to_rgb(room,frame, room_structure=None,init=False,item=[]):
     aris.seek(frame % aris.n_frames)
 
     #water level -> terrain level -> player and box level
-    WATER_UPDATE_INTERVAL = 4
+    WATER_UPDATE_INTERVAL = 8
     current_water = (frame // WATER_UPDATE_INTERVAL) % 3
     if frame % WATER_UPDATE_INTERVAL == 0:
         water_map = (BASE_WATER + current_water) % 3

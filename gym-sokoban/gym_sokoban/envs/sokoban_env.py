@@ -57,10 +57,10 @@ class SokobanEnv(gym.Env):
         self.penalty_box_off_target = -.01
         self.penalty_illegal_move = -.05
         self.penalty_push_box = -0.001
-        self.reward_pickup_item = .2
-        self.reward_extinguish_fire = .5
-        self.reward_box_on_target = 2
-        self.reward_finished = 10
+        self.reward_pickup_item = .8
+        self.reward_extinguish_fire = 2.2
+        self.reward_box_on_target = 3
+        self.reward_finished = 20
         self.reward_last = 0
         self.current_frame = 0
         # Other Settings
@@ -266,7 +266,7 @@ class SokobanEnv(gym.Env):
     def _check_if_done(self):
         # Check if the game is over either through reaching the maximum number
         # of available steps or by pushing all boxes on the targets.        
-        return self._check_if_all_boxes_on_target() or self._check_if_maxsteps()
+        return self._check_if_all_boxes_on_target() or self._check_if_maxsteps() or self._check_if_fire_exist_without_extinguisher()
 
     def _check_if_all_boxes_on_target(self):
         empty_targets = self.room_state == 5
@@ -276,6 +276,11 @@ class SokobanEnv(gym.Env):
 
     def _check_if_maxsteps(self):
         return (self.max_steps == self.num_env_steps)
+    def _check_if_fire_exist_without_extinguisher(self):
+        extinguiser_exist = np.any(np.array(self.room_state) == 7) or 7 in self.items
+        fire_exist = self.room_state == 8
+        #if all fire is extinguished or there is no fire, return false
+        return np.where(fire_exist)[0].shape[0] != 0 and not extinguiser_exist
     
     def reset(self, second_player=False, render_mode='rgb_array'):
         try:
