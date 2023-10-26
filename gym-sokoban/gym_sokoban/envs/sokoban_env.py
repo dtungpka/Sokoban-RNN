@@ -64,6 +64,8 @@ class SokobanEnv(gym.Env):
         self.reward_last = 0
         self.current_frame = 0
         self.last_action = -1
+        self.base_room_state = None
+        self.base_room_structure = None
         # Other Settings
         self.viewer = None
         self.pending_init_render= False
@@ -71,10 +73,11 @@ class SokobanEnv(gym.Env):
         self.action_space = Discrete(len(ACTION_LOOKUP))
         screen_height, screen_width = (dim_room[0] * 128, dim_room[1] * 128)
         self.observation_space = np.zeros((1, 26, 26))
-
+        self.set_level(0,1)
         if reset:
             # Initialize Room
             _ = self.reset()
+            
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -125,7 +128,7 @@ class SokobanEnv(gym.Env):
             info["maxsteps_used"] = self._check_if_maxsteps()
             info["all_boxes_on_target"] = self._check_if_all_boxes_on_target()
 
-        return observation, self.reward_last, done, info
+        return self.serialize_state(), self.reward_last, done, info
     def _pickup(self):
         """
         Pick up an item, if available.
@@ -151,7 +154,7 @@ class SokobanEnv(gym.Env):
         #check inventory
         if 7 not in self.items:
             return False
-        self.items.remove(7)
+        
             
         for direction in directions:
             new_position = current_position + direction
@@ -160,7 +163,8 @@ class SokobanEnv(gym.Env):
                 self.room_fixed[new_position[0], new_position[1]] = 0
                 _extinguished = True
                 self.reward_last += self.reward_extinguish_fire
-        
+        if _extinguished:
+            self.items.remove(7)
         return _extinguished
     
 
@@ -285,18 +289,12 @@ class SokobanEnv(gym.Env):
         #count the number of fires
         fires = np.sum((self.room_state == 8)*1)
         extinguishers = np.sum((self.room_state == 7)*1) + sum([1 for i in self.items if i == 7])
-        return fires > extinguishers
+        return fires > 0 and (extinguishers == 0)
     
     def reset(self, second_player=False, render_mode='rgb_array'):
         try:
-            self.room_fixed, self.room_state= generate_room(
-                dim=self.dim_room,
-                num_steps=self.num_gen_steps,
-                num_boxes=self.num_boxes,
-                second_player=second_player,
-                chapter=CHAPTER,
-                level=LEVEL
-            )
+            self.room_state = self.base_room_state.copy()
+            self.room_fixed = self.base_room_structure.copy()
         except (RuntimeError, RuntimeWarning) as e:
             print("[SOKOBAN] Runtime Error/Warning: {}".format(e))
             print("[SOKOBAN] Retry . . .")
@@ -309,8 +307,7 @@ class SokobanEnv(gym.Env):
         self.items = []
         self.last_action = -1
 
-        starting_observation = self.room_state.reshape((1, 26, 26))
-        return starting_observation
+        return self.serialize_state()
 
     def render(self, mode='human', close=None, scale=1):
         assert mode in RENDERING_MODES
@@ -353,11 +350,22 @@ class SokobanEnv(gym.Env):
 
     def get_action_meanings(self):
         return ACTION_LOOKUP
-
+    def is_finished(self):
+        return self._check_if_all_boxes_on_target()
     def set_level(self,chapter,level):
         global CHAPTER, LEVEL
         CHAPTER = chapter
         LEVEL = level
+        self.base_room_structure, self.base_room_state= generate_room(
+                dim=self.dim_room,
+                num_steps=self.num_gen_steps,
+                num_boxes=self.num_boxes,
+                second_player=False,
+                chapter=CHAPTER,
+                level=LEVEL
+            )
+        self.room_state = self.base_room_state.copy()
+        self.room_fixed = self.base_room_structure.copy()
         self.pending_init_render = True
     def serialize_state(self):
         s = ""

@@ -24,7 +24,7 @@ def generate_room(dim=(26, 26), p_change_directions=0.35, num_steps=25, num_boxe
     pick = f"xsbs/{random.randint(1, 15) if chapter == -1 else chapter}/{random.randint(1, 100) if level == -1 else level}.xsb"
     #print(f'pick: {pick}, {os.path.exists(pick)}, {os.getcwd()}')
     while not os.path.exists(pick):
-        pick = f"xsbs/{random.randint(1, 15)}/{random.randint(1, 100)}.xsb"
+        pick = f"xsbs/{random.randint(1, 15)}/{random.randint(1, 100)}.xsb" #xsbs/1/1.xsb
     room_state = open(pick).read().split("\n\n")
     lname = pick.split("/")[0] + "/" + room_state[0].split("; ")[1]
     room_state = room_state[1].split("\n")

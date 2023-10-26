@@ -6,7 +6,7 @@ import json
 import threading
 mapped = {'edge':{}, 'coner':{}}
 
-
+path = 'xsbs/1/1.xsb'
 class data:
     tile_choose = 0
     ok = False
